@@ -72,13 +72,11 @@ def printCode():
     result = cursor.fetchone()
     if result:
         path = result[0]
-
         try:
             with open(path, "r") as file:
                 print(file.read())
         except FileNotFoundError:
             print("File not found")
-
     else:
         print("Problem not found in database")
 
