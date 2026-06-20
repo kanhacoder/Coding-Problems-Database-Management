@@ -80,10 +80,16 @@ def printCode():
     else:
         print("Problem not found in database")
 
+def delRecord():
+    problem = input("Enter the topic of the problem to be deleted: ")
+    cursor.execute("DELETE FROM PROBLEMS WHERE TOPIC = %s",(problem))
+    conn.commit()
+
 print("1. Add a record to your problem's table.")
 print("2. Edit an existing record in your problem's table.")
 print("3. Print an existing record in your problem's table.")
 print("4. View the code to an existing problem in your problem's table.")
+print("5. Delete a record from your problem's table.")
 choice = int(input("Enter your choice(1,2,3 or 4) according to the operation you want to perform: "))
 
 if choice==1:
@@ -94,6 +100,8 @@ elif choice==3:
     printRecord()
 elif choice==4:
     printCode()
+elif choice==5:
+    delRecord()
 else:
     print("Invalid choice!")
 
