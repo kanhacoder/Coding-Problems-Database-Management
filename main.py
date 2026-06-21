@@ -85,11 +85,26 @@ def delRecord():
     cursor.execute("DELETE FROM PROBLEMS WHERE TOPIC = %s",(problem))
     conn.commit()
 
+def dbStats():
+    cursor.execute("SELECT COUNT(*) FROM PROBLEMS")
+    result = cursor.fetchone()
+    print("Total problems:",result)
+    cursor.execute("SELECT COUNT(*) FROM PROBLEMS WHERE DIFFICULTY='EASY'")
+    result = cursor.fetchone()
+    print("Easy:",result)
+    cursor.execute("SELECT COUNT(*) FROM PROBLEMS WHERE DIFFICULTY='MEDIUM'")
+    result = cursor.fetchone()
+    print("Medium:",result)
+    cursor.execute("SELECT COUNT(*) FROM PROBLEMS WHERE DIFFICULTY='Hard'")
+    result = cursor.fetchone()
+    print("Hard:",result)
+
 print("1. Add a record to your problem's table.")
 print("2. Edit an existing record in your problem's table.")
 print("3. Print an existing record in your problem's table.")
 print("4. View the code to an existing problem in your problem's table.")
 print("5. Delete a record from your problem's table.")
+print("6. Statistics of your problems database.")
 choice = int(input("Enter your choice(1,2,3 or 4) according to the operation you want to perform: "))
 
 if choice==1:
@@ -102,6 +117,8 @@ elif choice==4:
     printCode()
 elif choice==5:
     delRecord()
+elif choice==6:
+    dbStats()
 else:
     print("Invalid choice!")
 
