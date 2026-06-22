@@ -7,5 +7,6 @@ CREATE TABLE IF NOT EXISTS PROBLEMS (
     problem_name VARCHAR(255) NOT NULL,
     topic VARCHAR(100) NOT NULL,
     difficulty VARCHAR(20) NOT NULL,
-    file_path VARCHAR(500) NOT NULL
+    file_path VARCHAR(500) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'UNSOLVED'
 );
