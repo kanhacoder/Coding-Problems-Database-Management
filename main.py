@@ -95,12 +95,19 @@ def dbStats():
     cursor.execute("SELECT COUNT(*) FROM PROBLEMS WHERE DIFFICULTY='HARD'")
     print("Hard:", cursor.fetchone()[0])
 
+def updateStatus():
+    record = input("Enter the topic of the problem to be updated: ")
+    newsts = input("Enter new status for the problem: ")
+    cursor.execute("UPDATE PROBLEMS SET STATUS=%s WHERE TOPIC=%s",(newsts,record))
+    conn.commit()
+
 print("1. Add a record to your problem's table.")
 print("2. Edit an existing record in your problem's table.")
 print("3. Print an existing record in your problem's table.")
 print("4. View the code to an existing problem in your problem's table.")
 print("5. Delete a record from your problem's table.")
 print("6. Statistics of your problems database.")
+print("7. Update status of a record in your problems's table.")
 choice = int(input("Enter your choice(1,2,3,4,5 or 6) according to the operation you want to perform: "))
 
 if choice==1:
@@ -115,6 +122,8 @@ elif choice==5:
     delRecord()
 elif choice==6:
     dbStats()
+elif choice==7:
+    updateStatus()
 else:
     print("Invalid choice!")
 
