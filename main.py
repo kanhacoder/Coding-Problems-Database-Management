@@ -101,14 +101,39 @@ def updateStatus():
     cursor.execute("UPDATE PROBLEMS SET STATUS=%s WHERE TOPIC=%s",(newsts,record))
     conn.commit()
 
-print("1. Add a record to your problem's table.")
-print("2. Edit an existing record in your problem's table.")
-print("3. Print an existing record in your problem's table.")
-print("4. View the code to an existing problem in your problem's table.")
-print("5. Delete a record from your problem's table.")
+def randomProblem():
+    cursor.execute("SELECT * FROM PROBLEMS ORDER BY RAND() LIMIT 1")
+    print("Problem name: ",cursor.fetchone()[1])
+    print("Topic: ",cursor.fetchone()[2])
+    print("Difficulty: ",cursor.fetchone()[3])
+    print("File path: ",cursor.fetchone()[4])
+
+def tableStats():
+    print("=== DATABASE STATISTICS ===")
+    cursor.execute("SELECT COUNT(*) AS Total_Problems FROM PROBLEMS")
+    print("Total problems:",cursor.fetchone()[0])
+    print("")
+    print("By Difficulty: ")
+    cursor.execute("SELECT difficulty, COUNT(*) AS Count FROM PROBLEMS GROUP BY difficulty")
+    for difficulty, count in cursor.fetchall():
+        print(difficulty,":",count)
+    print("")
+    print("By Status: ")
+    cursor.execute("SELECT status, COUNT(*) AS Count FROM PROBLEMS GROUP BY status")
+    for status, count in cursor.fetchall():
+        print(status,":",count)
+    
+
+print("1. Add a record to your problems table.")
+print("2. Edit an existing record in your problems table.")
+print("3. Print an existing record in your problems table.")
+print("4. View the code to an existing problem in your problems table.")
+print("5. Delete a record from your problems table.")
 print("6. Statistics of your problems database.")
-print("7. Update status of a record in your problems's table.")
-choice = int(input("Enter your choice(1,2,3,4,5 or 6) according to the operation you want to perform: "))
+print("7. Update status of a record in your problemss table.")
+print("8. Select a random problems from your problems table.")
+print("9. Statistics of your problems table.")
+choice = int(input("Enter your choice(1,2,3,4,5,6,7,8 or 9) according to the operation you want to perform: "))
 
 if choice==1:
     addRecord()
@@ -124,6 +149,10 @@ elif choice==6:
     dbStats()
 elif choice==7:
     updateStatus()
+elif choice==8:
+    randomProblem()
+elif choice==9:
+    tableStats()    
 else:
     print("Invalid choice!")
 
