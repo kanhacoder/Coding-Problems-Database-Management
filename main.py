@@ -1,4 +1,5 @@
 import mysql.connector
+import os
 
 conn = mysql.connector.connect(
     host="localhost",
@@ -122,6 +123,12 @@ def tableStats():
     cursor.execute("SELECT status, COUNT(*) AS Count FROM PROBLEMS GROUP BY status")
     for status, count in cursor.fetchall():
         print(status,":",count)
+
+def openProblem():
+    topic = input("Please enter the topic of the file to be opened: ")
+    cursor.execute("SELECT file_path FROM problems where topic=%s",(topic))
+    path = cursor.fetchone()[0]
+    os.startfile(path)
     
 
 print("1. Add a record to your problems table.")
@@ -133,7 +140,8 @@ print("6. Statistics of your problems database.")
 print("7. Update status of a record in your problemss table.")
 print("8. Select a random problems from your problems table.")
 print("9. Statistics of your problems table.")
-choice = int(input("Enter your choice(1,2,3,4,5,6,7,8 or 9) according to the operation you want to perform: "))
+print("10. Open file of a problem from your problems table.")
+choice = int(input("Enter your choice(1,2,3,4,5,6,7,8,9 or 10) according to the operation you want to perform: "))
 
 if choice==1:
     addRecord()
@@ -152,7 +160,9 @@ elif choice==7:
 elif choice==8:
     randomProblem()
 elif choice==9:
-    tableStats()    
+    tableStats()  
+elif choice==10:
+    openProblem()  
 else:
     print("Invalid choice!")
 
