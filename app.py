@@ -1,3 +1,4 @@
+﻿import os
 from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -17,18 +18,35 @@ class CodingProblemsApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Coding Problems Database")
-        self.root.geometry("1000x650")
-        self.root.minsize(900, 560)
+        self.root.geometry("1180x720")
+        self.root.minsize(1040, 640)
 
         self.selected_id = None
         self.conn = mysql.connector.connect(**DB_CONFIG)
         self.cursor = self.conn.cursor()
 
+        self.ensure_table_columns()
         self.setup_style()
         self.build_ui()
         self.load_records()
+        self.load_stats()
 
         self.root.protocol("WM_DELETE_WINDOW", self.close_app)
+
+    def ensure_table_columns(self):
+        self.cursor.execute("SHOW COLUMNS FROM PROBLEMS")
+        existing_columns = {column[0].lower() for column in self.cursor.fetchall()}
+
+        if "status" not in existing_columns:
+            self.cursor.execute("ALTER TABLE PROBLEMS ADD COLUMN status VARCHAR(20) NOT NULL DEFAULT 'UNSOLVED'")
+
+        if "times_revised" not in existing_columns:
+            self.cursor.execute("ALTER TABLE PROBLEMS ADD COLUMN times_revised INT NOT NULL DEFAULT 0")
+
+        if "last_revised" not in existing_columns:
+            self.cursor.execute("ALTER TABLE PROBLEMS ADD COLUMN last_revised DATE NULL")
+
+        self.conn.commit()
 
     def setup_style(self):
         style = ttk.Style()
@@ -37,7 +55,7 @@ class CodingProblemsApp:
         style.configure("Header.TLabel", background="#f6f8fb", foreground="#18202f", font=("Segoe UI", 20, "bold"))
         style.configure("Subtle.TLabel", background="#f6f8fb", foreground="#637083", font=("Segoe UI", 10))
         style.configure("TLabel", background="#f6f8fb", foreground="#263244", font=("Segoe UI", 10))
-        style.configure("TButton", font=("Segoe UI", 10), padding=(12, 7))
+        style.configure("TButton", font=("Segoe UI", 10), padding=(10, 7))
         style.configure("Primary.TButton", background="#1f6feb", foreground="white")
         style.configure("Treeview", rowheight=28, font=("Segoe UI", 10))
         style.configure("Treeview.Heading", font=("Segoe UI", 10, "bold"))
@@ -52,7 +70,7 @@ class CodingProblemsApp:
         ttk.Label(header, text="Coding Problems Database", style="Header.TLabel").pack(anchor=tk.W)
         ttk.Label(
             header,
-            text="Save solved DSA problems, search them later, and open the stored code file.",
+            text="Track solved problems, status, revisions, and saved code files.",
             style="Subtle.TLabel",
         ).pack(anchor=tk.W, pady=(4, 0))
 
@@ -68,22 +86,32 @@ class CodingProblemsApp:
         self.problem_name = tk.StringVar()
         self.topic = tk.StringVar()
         self.difficulty = tk.StringVar(value="Easy")
+        self.status = tk.StringVar(value="UNSOLVED")
         self.file_path = tk.StringVar()
         self.search_text = tk.StringVar()
         self.filter_field = tk.StringVar(value="All")
+        self.stats_text = tk.StringVar(value="Stats will appear here.")
 
         self.add_labeled_entry(form, "Problem Name", self.problem_name)
         self.add_labeled_entry(form, "Topic", self.topic)
 
         ttk.Label(form, text="Difficulty").pack(anchor=tk.W, pady=(12, 4))
-        difficulty_box = ttk.Combobox(
+        ttk.Combobox(
             form,
             textvariable=self.difficulty,
             values=("Easy", "Medium", "Hard"),
             state="readonly",
             width=30,
-        )
-        difficulty_box.pack(fill=tk.X)
+        ).pack(fill=tk.X)
+
+        ttk.Label(form, text="Status").pack(anchor=tk.W, pady=(12, 4))
+        ttk.Combobox(
+            form,
+            textvariable=self.status,
+            values=("UNSOLVED", "SOLVING", "SOLVED", "REVISE"),
+            state="readonly",
+            width=30,
+        ).pack(fill=tk.X)
 
         ttk.Label(form, text="Code File Path").pack(anchor=tk.W, pady=(12, 4))
         path_row = ttk.Frame(form)
@@ -94,23 +122,34 @@ class CodingProblemsApp:
         button_grid = ttk.Frame(form)
         button_grid.pack(fill=tk.X, pady=(18, 0))
 
-        ttk.Button(button_grid, text="Add", style="Primary.TButton", command=self.add_record).grid(
-            row=0, column=0, sticky="ew", padx=(0, 6), pady=5
-        )
-        ttk.Button(button_grid, text="Update", command=self.update_record).grid(
-            row=0, column=1, sticky="ew", padx=(6, 0), pady=5
-        )
-        ttk.Button(button_grid, text="Delete", command=self.delete_record).grid(
-            row=1, column=0, sticky="ew", padx=(0, 6), pady=5
-        )
-        ttk.Button(button_grid, text="Clear", command=self.clear_form).grid(
-            row=1, column=1, sticky="ew", padx=(6, 0), pady=5
-        )
+        buttons = [
+            ("Add", self.add_record, "Primary.TButton"),
+            ("Update", self.update_record, None),
+            ("Delete", self.delete_record, None),
+            ("Clear", self.clear_form, None),
+            ("View Code", self.view_code, None),
+            ("Open File", self.open_problem_file, None),
+            ("Add Revision", self.add_revision, None),
+            ("Random Problem", self.random_problem, None),
+        ]
+
+        for index, (text, command, style_name) in enumerate(buttons):
+            row = index // 2
+            column = index % 2
+            ttk.Button(button_grid, text=text, command=command, style=style_name or "TButton").grid(
+                row=row,
+                column=column,
+                sticky="ew",
+                padx=(0, 6) if column == 0 else (6, 0),
+                pady=5,
+            )
 
         button_grid.columnconfigure(0, weight=1)
         button_grid.columnconfigure(1, weight=1)
 
-        ttk.Button(form, text="View Code", command=self.view_code).pack(fill=tk.X, pady=(14, 0))
+        ttk.Label(form, text="Database Statistics").pack(anchor=tk.W, pady=(18, 4))
+        ttk.Label(form, textvariable=self.stats_text, justify=tk.LEFT, style="Subtle.TLabel").pack(anchor=tk.W, fill=tk.X)
+        ttk.Button(form, text="Refresh Stats", command=self.load_stats).pack(fill=tk.X, pady=(10, 0))
 
         search_row = ttk.Frame(table_area)
         search_row.pack(fill=tk.X, pady=(0, 10))
@@ -119,22 +158,25 @@ class CodingProblemsApp:
         ttk.Combobox(
             search_row,
             textvariable=self.filter_field,
-            values=("All", "Problem Name", "Topic", "Difficulty"),
+            values=("All", "Problem Name", "Topic", "Difficulty", "Status"),
             state="readonly",
             width=16,
         ).pack(side=tk.LEFT, padx=8)
         ttk.Button(search_row, text="Search", command=self.search_records).pack(side=tk.LEFT)
         ttk.Button(search_row, text="Refresh", command=self.load_records).pack(side=tk.LEFT, padx=(8, 0))
 
-        columns = ("ID", "Problem Name", "Topic", "Difficulty", "File Path")
+        columns = ("ID", "Problem Name", "Topic", "Difficulty", "Status", "Revisions", "Last Revised", "File Path")
         self.tree = ttk.Treeview(table_area, columns=columns, show="headings")
 
         widths = {
-            "ID": 60,
-            "Problem Name": 190,
-            "Topic": 140,
-            "Difficulty": 100,
-            "File Path": 330,
+            "ID": 52,
+            "Problem Name": 170,
+            "Topic": 115,
+            "Difficulty": 85,
+            "Status": 90,
+            "Revisions": 80,
+            "Last Revised": 105,
+            "File Path": 300,
         }
 
         for column in columns:
@@ -166,20 +208,14 @@ class CodingProblemsApp:
 
         self.cursor.execute(
             """
-            INSERT INTO PROBLEMS (problem_name, topic, difficulty, file_path)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO PROBLEMS (problem_name, topic, difficulty, file_path, status)
+            VALUES (%s, %s, %s, %s, %s)
             """,
-            (
-                self.problem_name.get().strip(),
-                self.topic.get().strip(),
-                self.difficulty.get().strip(),
-                self.file_path.get().strip(),
-            ),
+            self.form_values(),
         )
         self.conn.commit()
         messagebox.showinfo("Saved", "Problem added successfully.")
-        self.clear_form()
-        self.load_records()
+        self.after_database_change()
 
     def update_record(self):
         if self.selected_id is None:
@@ -191,21 +227,14 @@ class CodingProblemsApp:
         self.cursor.execute(
             """
             UPDATE PROBLEMS
-            SET problem_name = %s, topic = %s, difficulty = %s, file_path = %s
+            SET problem_name = %s, topic = %s, difficulty = %s, file_path = %s, status = %s
             WHERE ID = %s
             """,
-            (
-                self.problem_name.get().strip(),
-                self.topic.get().strip(),
-                self.difficulty.get().strip(),
-                self.file_path.get().strip(),
-                self.selected_id,
-            ),
+            (*self.form_values(), self.selected_id),
         )
         self.conn.commit()
         messagebox.showinfo("Updated", "Problem updated successfully.")
-        self.clear_form()
-        self.load_records()
+        self.after_database_change()
 
     def delete_record(self):
         if self.selected_id is None:
@@ -219,8 +248,7 @@ class CodingProblemsApp:
         self.cursor.execute("DELETE FROM PROBLEMS WHERE ID = %s", (self.selected_id,))
         self.conn.commit()
         messagebox.showinfo("Deleted", "Problem deleted successfully.")
-        self.clear_form()
-        self.load_records()
+        self.after_database_change()
 
     def view_code(self):
         path = self.file_path.get().strip()
@@ -247,10 +275,63 @@ class CodingProblemsApp:
         text.insert("1.0", code_path.read_text(encoding="utf-8"))
         text.configure(state=tk.DISABLED)
 
+    def open_problem_file(self):
+        path = self.file_path.get().strip()
+        if not path:
+            messagebox.showwarning("Missing File", "Select a record first.")
+            return
+
+        if not Path(path).exists():
+            messagebox.showerror("File Not Found", "The saved file path does not exist.")
+            return
+
+        os.startfile(path)
+
+    def add_revision(self):
+        if self.selected_id is None:
+            messagebox.showwarning("No Selection", "Select a record to revise.")
+            return
+
+        self.cursor.execute(
+            """
+            UPDATE PROBLEMS
+            SET times_revised = times_revised + 1, last_revised = CURDATE()
+            WHERE ID = %s
+            """,
+            (self.selected_id,),
+        )
+        self.conn.commit()
+        messagebox.showinfo("Revision Added", "Revision count updated.")
+        self.load_records()
+        self.load_stats()
+
+    def random_problem(self):
+        self.cursor.execute(
+            """
+            SELECT ID, problem_name, topic, difficulty, status, times_revised, last_revised, file_path
+            FROM PROBLEMS
+            ORDER BY RAND()
+            LIMIT 1
+            """
+        )
+        row = self.cursor.fetchone()
+        if row is None:
+            messagebox.showinfo("No Records", "No problems are saved yet.")
+            return
+
+        self.show_problem_details("Random Problem", row)
+
     def load_records(self):
         self.search_text.set("")
-        self.cursor.execute("SELECT ID, problem_name, topic, difficulty, file_path FROM PROBLEMS ORDER BY ID")
+        self.cursor.execute(
+            """
+            SELECT ID, problem_name, topic, difficulty, status, times_revised, last_revised, file_path
+            FROM PROBLEMS
+            ORDER BY ID
+            """
+        )
         self.show_rows(self.cursor.fetchall())
+        self.load_stats()
 
     def search_records(self):
         keyword = self.search_text.get().strip()
@@ -261,32 +342,69 @@ class CodingProblemsApp:
             return
 
         like_value = f"%{keyword}%"
+        base_query = """
+            SELECT ID, problem_name, topic, difficulty, status, times_revised, last_revised, file_path
+            FROM PROBLEMS
+        """
+
         if field == "Problem Name":
-            query = "SELECT ID, problem_name, topic, difficulty, file_path FROM PROBLEMS WHERE problem_name LIKE %s"
+            query = base_query + " WHERE problem_name LIKE %s"
             params = (like_value,)
         elif field == "Topic":
-            query = "SELECT ID, problem_name, topic, difficulty, file_path FROM PROBLEMS WHERE topic LIKE %s"
+            query = base_query + " WHERE topic LIKE %s"
             params = (like_value,)
         elif field == "Difficulty":
-            query = "SELECT ID, problem_name, topic, difficulty, file_path FROM PROBLEMS WHERE difficulty LIKE %s"
+            query = base_query + " WHERE difficulty LIKE %s"
+            params = (like_value,)
+        elif field == "Status":
+            query = base_query + " WHERE status LIKE %s"
             params = (like_value,)
         else:
-            query = """
-                SELECT ID, problem_name, topic, difficulty, file_path
-                FROM PROBLEMS
-                WHERE problem_name LIKE %s OR topic LIKE %s OR difficulty LIKE %s
+            query = base_query + """
+                WHERE problem_name LIKE %s
+                   OR topic LIKE %s
+                   OR difficulty LIKE %s
+                   OR status LIKE %s
             """
-            params = (like_value, like_value, like_value)
+            params = (like_value, like_value, like_value, like_value)
 
         self.cursor.execute(query, params)
         self.show_rows(self.cursor.fetchall())
+
+    def load_stats(self):
+        self.cursor.execute("SELECT COUNT(*) FROM PROBLEMS")
+        total = self.cursor.fetchone()[0]
+
+        self.cursor.execute("SELECT difficulty, COUNT(*) FROM PROBLEMS GROUP BY difficulty")
+        difficulty_counts = self.cursor.fetchall()
+
+        self.cursor.execute("SELECT status, COUNT(*) FROM PROBLEMS GROUP BY status")
+        status_counts = self.cursor.fetchall()
+
+        lines = [f"Total Problems: {total}", "", "By Difficulty:"]
+        if difficulty_counts:
+            lines.extend(f"{difficulty}: {count}" for difficulty, count in difficulty_counts)
+        else:
+            lines.append("No records")
+
+        lines.append("")
+        lines.append("By Status:")
+        if status_counts:
+            lines.extend(f"{status}: {count}" for status, count in status_counts)
+        else:
+            lines.append("No records")
+
+        self.stats_text.set("\n".join(lines))
 
     def show_rows(self, rows):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
         for row in rows:
-            self.tree.insert("", tk.END, values=row)
+            display_row = list(row)
+            if display_row[6] is None:
+                display_row[6] = ""
+            self.tree.insert("", tk.END, values=display_row)
 
     def fill_form_from_selection(self, _event):
         selected = self.tree.selection()
@@ -298,7 +416,29 @@ class CodingProblemsApp:
         self.problem_name.set(values[1])
         self.topic.set(values[2])
         self.difficulty.set(values[3])
-        self.file_path.set(values[4])
+        self.status.set(values[4])
+        self.file_path.set(values[7])
+
+    def show_problem_details(self, title, row):
+        details = (
+            f"Problem Name: {row[1]}\n"
+            f"Topic: {row[2]}\n"
+            f"Difficulty: {row[3]}\n"
+            f"Status: {row[4]}\n"
+            f"Times Revised: {row[5]}\n"
+            f"Last Revised: {row[6] or 'Not revised yet'}\n"
+            f"File Path: {row[7]}"
+        )
+        messagebox.showinfo(title, details)
+
+    def form_values(self):
+        return (
+            self.problem_name.get().strip(),
+            self.topic.get().strip(),
+            self.difficulty.get().strip(),
+            self.file_path.get().strip(),
+            self.status.get().strip(),
+        )
 
     def validate_form(self):
         if not self.problem_name.get().strip():
@@ -310,6 +450,9 @@ class CodingProblemsApp:
         if not self.difficulty.get().strip():
             messagebox.showwarning("Missing Value", "Difficulty is required.")
             return False
+        if not self.status.get().strip():
+            messagebox.showwarning("Missing Value", "Status is required.")
+            return False
         if not self.file_path.get().strip():
             messagebox.showwarning("Missing Value", "File path is required.")
             return False
@@ -320,8 +463,14 @@ class CodingProblemsApp:
         self.problem_name.set("")
         self.topic.set("")
         self.difficulty.set("Easy")
+        self.status.set("UNSOLVED")
         self.file_path.set("")
         self.tree.selection_remove(self.tree.selection())
+
+    def after_database_change(self):
+        self.clear_form()
+        self.load_records()
+        self.load_stats()
 
     def close_app(self):
         self.cursor.close()
