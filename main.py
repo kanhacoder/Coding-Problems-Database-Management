@@ -130,8 +130,11 @@ def openProblem():
     path = cursor.fetchone()[0]
     os.startfile(path)
     
-# def addRevision():
-#     topic = input("Add topic of the problem which you revised: ")
+def addRevision():
+    pname = input("Add name of the problem which you revised: ")
+    cursor.execute("UPDATE PROBLEMS SET TIMES_REVISED = TIMES_REVISED + 1,LAST_REVISED = CURDATE() WHERE PROBLEM_NAME = %s",(pname))
+    conn.commit()
+    print("Revision of",pname,"has been updated in your problems table.")
 
 
 print("1. Add a record to your problems table.")
