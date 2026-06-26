@@ -1,4 +1,4 @@
-import mysql.connector
+﻿import mysql.connector
 import os
 
 conn = mysql.connector.connect(
@@ -8,6 +8,15 @@ conn = mysql.connector.connect(
     database="ProblemDB"
 )
 cursor = conn.cursor()
+
+def resetIds():
+    cursor.execute("SET @new_id = 0")
+    cursor.execute("UPDATE PROBLEMS SET ID = -ID ORDER BY ID")
+    cursor.execute("UPDATE PROBLEMS SET ID = (@new_id := @new_id + 1) ORDER BY ID DESC")
+    cursor.execute("SELECT COALESCE(MAX(ID), 0) + 1 FROM PROBLEMS")
+    next_id = cursor.fetchone()[0]
+    cursor.execute(f"ALTER TABLE PROBLEMS AUTO_INCREMENT = {next_id}")
+    conn.commit()
 
 def addRecord():
     pname = input("Please enter the name of the problem: ")
@@ -83,8 +92,9 @@ def printCode():
 
 def delRecord():
     problem = input("Enter the problem name of the problem to be deleted: ")
-    cursor.execute("DELETE FROM PROBLEMS WHERE problem_name = %s",(problem))
-    conn.commit()
+    cursor.execute("DELETE FROM PROBLEMS WHERE problem_name = %s", (problem,))
+    resetIds()
+    print("Problem deleted and IDs updated.")
 
 def dbStats():
     cursor.execute("SELECT COUNT(*) FROM PROBLEMS")
@@ -99,15 +109,19 @@ def dbStats():
 def updateStatus():
     record = input("Enter the problem name of the problem to be updated: ")
     newsts = input("Enter new status for the problem: ")
-    cursor.execute("UPDATE PROBLEMS SET STATUS=%s WHERE problem_name=%s",(newsts,record))
+    cursor.execute("UPDATE PROBLEMS SET STATUS=%s WHERE problem_name=%s", (newsts, record,))
     conn.commit()
 
 def randomProblem():
     cursor.execute("SELECT * FROM PROBLEMS ORDER BY RAND() LIMIT 1")
-    print("Problem name: ",cursor.fetchone()[1])
-    print("Topic: ",cursor.fetchone()[2])
-    print("Difficulty: ",cursor.fetchone()[3])
-    print("File path: ",cursor.fetchone()[4])
+    record = cursor.fetchone()
+    if record:
+        print("Problem name: ", record[1])
+        print("Topic: ", record[2])
+        print("Difficulty: ", record[3])
+        print("File path: ", record[4])
+    else:
+        print("No problems found.")
 
 def tableStats():
     print("=== DATABASE STATISTICS ===")
@@ -126,13 +140,13 @@ def tableStats():
 
 def openProblem():
     topic = input("Please enter the name of problem whose file is to be opened: ")
-    cursor.execute("SELECT file_path FROM problems where problem_name=%s",(topic))
+    cursor.execute("SELECT file_path FROM problems where problem_name=%s", (topic,))
     path = cursor.fetchone()[0]
     os.startfile(path)
     
 def addRevision():
     pname = input("Add name of the problem which you revised: ")
-    cursor.execute("UPDATE PROBLEMS SET TIMES_REVISED = TIMES_REVISED + 1,LAST_REVISED = CURDATE() WHERE PROBLEM_NAME = %s",(pname))
+    cursor.execute("UPDATE PROBLEMS SET TIMES_REVISED = TIMES_REVISED + 1, LAST_REVISED = CURDATE() WHERE PROBLEM_NAME = %s", (pname,))
     conn.commit()
     print("Revision of",pname,"has been updated in your problems table.")
 

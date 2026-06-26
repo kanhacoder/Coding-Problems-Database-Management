@@ -246,9 +246,18 @@ class CodingProblemsApp:
             return
 
         self.cursor.execute("DELETE FROM PROBLEMS WHERE ID = %s", (self.selected_id,))
+        self.resequence_ids()
         self.conn.commit()
         messagebox.showinfo("Deleted", "Problem deleted successfully.")
         self.after_database_change()
+
+    def resequence_ids(self):
+        self.cursor.execute("SET @new_id = 0")
+        self.cursor.execute("UPDATE PROBLEMS SET ID = -ID ORDER BY ID")
+        self.cursor.execute("UPDATE PROBLEMS SET ID = (@new_id := @new_id + 1) ORDER BY ID DESC")
+        self.cursor.execute("SELECT COALESCE(MAX(ID), 0) + 1 FROM PROBLEMS")
+        next_id = self.cursor.fetchone()[0]
+        self.cursor.execute(f"ALTER TABLE PROBLEMS AUTO_INCREMENT = {next_id}")
 
     def view_code(self):
         path = self.file_path.get().strip()
@@ -491,3 +500,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
