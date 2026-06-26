@@ -1,4 +1,4 @@
-﻿import mysql.connector
+import mysql.connector
 import os
 
 conn = mysql.connector.connect(
