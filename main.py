@@ -82,8 +82,8 @@ def printCode():
         print("Problem not found in database")
 
 def delRecord():
-    problem = input("Enter the topic of the problem to be deleted: ")
-    cursor.execute("DELETE FROM PROBLEMS WHERE TOPIC = %s",(problem))
+    problem = input("Enter the problem name of the problem to be deleted: ")
+    cursor.execute("DELETE FROM PROBLEMS WHERE problem_name = %s",(problem))
     conn.commit()
 
 def dbStats():
@@ -97,9 +97,9 @@ def dbStats():
     print("Hard:", cursor.fetchone()[0])
 
 def updateStatus():
-    record = input("Enter the topic of the problem to be updated: ")
+    record = input("Enter the problem name of the problem to be updated: ")
     newsts = input("Enter new status for the problem: ")
-    cursor.execute("UPDATE PROBLEMS SET STATUS=%s WHERE TOPIC=%s",(newsts,record))
+    cursor.execute("UPDATE PROBLEMS SET STATUS=%s WHERE problem_name=%s",(newsts,record))
     conn.commit()
 
 def randomProblem():
@@ -125,11 +125,14 @@ def tableStats():
         print(status,":",count)
 
 def openProblem():
-    topic = input("Please enter the topic of the file to be opened: ")
-    cursor.execute("SELECT file_path FROM problems where topic=%s",(topic))
+    topic = input("Please enter the name of problem whose file is to be opened: ")
+    cursor.execute("SELECT file_path FROM problems where problem_name=%s",(topic))
     path = cursor.fetchone()[0]
     os.startfile(path)
     
+# def addRevision():
+#     topic = input("Add topic of the problem which you revised: ")
+
 
 print("1. Add a record to your problems table.")
 print("2. Edit an existing record in your problems table.")
@@ -141,6 +144,7 @@ print("7. Update status of a record in your problemss table.")
 print("8. Select a random problems from your problems table.")
 print("9. Statistics of your problems table.")
 print("10. Open file of a problem from your problems table.")
+print("11. Add revision to a problem in your problems table.")
 choice = int(input("Enter your choice(1,2,3,4,5,6,7,8,9 or 10) according to the operation you want to perform: "))
 
 if choice==1:
@@ -162,7 +166,9 @@ elif choice==8:
 elif choice==9:
     tableStats()  
 elif choice==10:
-    openProblem()  
+    openProblem() 
+elif choice==11:
+    addRevision() 
 else:
     print("Invalid choice!")
 
